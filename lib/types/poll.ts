@@ -13,10 +13,11 @@ export interface Poll {
 }
 
 export interface PollOption {
-  id: string;
+  id?: string;
   text: string;
-  votes: number;
-  pollId: string;
+  votes?: number;
+  pollId?: string;
+  poll_id?: string; // For database compatibility
 }
 
 export interface Vote {
@@ -30,9 +31,26 @@ export interface Vote {
 export interface CreatePollData {
   title: string;
   description?: string;
-  options: string[];
+  options: PollOption[];
   expiresAt?: Date;
   allowMultipleVotes?: boolean;
+}
+
+export interface UpdatePollData extends CreatePollData {
+  id: string;
+}
+
+export interface PollActionResult {
+  success?: boolean;
+  message: string;
+  pollId?: string;
+  errors?: Record<string, string[]>;
+}
+
+export interface PollPermissions {
+  canEdit: boolean;
+  canDelete: boolean;
+  canView: boolean;
 }
 
 export interface PollStats {

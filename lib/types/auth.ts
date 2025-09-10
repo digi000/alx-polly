@@ -1,10 +1,15 @@
 export interface User {
   id: string;
   email: string;
-  name: string;
+  name?: string;
   avatar?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface AuthenticatedUser {
+  id: string;
+  email?: string;
 }
 
 export interface LoginCredentials {
@@ -23,4 +28,9 @@ export interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+}
+
+export interface AuthResult {
+  user: AuthenticatedUser | null;
+  error?: string;
 }
