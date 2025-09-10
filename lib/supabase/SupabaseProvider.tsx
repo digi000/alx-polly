@@ -1,11 +1,12 @@
 "use client";
 
-import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
-import { Session, SupabaseClient } from '@supabase/supabase-js';
+import { type SupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState } from 'react';
+import { createSupabaseBrowserClient } from './client';
 
 type SupabaseContext = {
-  supabase: SupabaseClient<any, 'public', any>;
+  supabase: SupabaseClient;
   session: Session | null;
 };
 
@@ -16,16 +17,14 @@ export default function SupabaseProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [supabase] = useState(() => createPagesBrowserClient());
+  const [supabase] = useState(() => createSupabaseBrowserClient());
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
-      });
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
     });
 
     return () => {

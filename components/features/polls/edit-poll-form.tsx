@@ -17,27 +17,56 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { createPoll } from "@/lib/actions";
+import { updatePoll } from "@/lib/actions";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
-const pollFormSchema = z.object({
+const editPollSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long"),
   description: z.string().optional(),
   options: z
-    .array(z.object({ text: z.string().min(1, "Option cannot be empty") }))
-    .min(2, "You must provide at least two options"),
+    .array(z.object({ 
+      id: z.string().optional(),
+      text: z.string().min(1, "Option cannot be empty").transform(val => val.trim())
+    }))
+    .min(2, "You must provide at least two options")
+    .refine(
+      (options) => options.filter(opt => opt.text.length > 0).length >= 2,
+      "You must provide at least two non-empty options"
+    ),
 });
 
-export function CreatePollForm() {
+interface PollOption {
+  id: string;
+  text: string;
+}
+
+interface Poll {
+  id: string;
+  title: string;
+  description?: string;
+  created_by: string;
+  poll_options: PollOption[];
+}
+
+interface EditPollFormProps {
+  poll: Poll;
+}
+
+export function EditPollForm({ poll }: EditPollFormProps) {
   const [message, setMessage] = useState<string>("");
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const router = useRouter();
 
-  const form = useForm<z.infer<typeof pollFormSchema>>({
-    resolver: zodResolver(pollFormSchema),
+  const form = useForm<z.infer<typeof editPollSchema>>({
+    resolver: zodResolver(editPollSchema),
     defaultValues: {
-      title: "",
-      description: "",
-      options: [{ text: "" }, { text: "" }],
+      title: poll.title,
+      description: poll.description || "",
+      options: poll.poll_options.map(option => ({
+        id: option.id,
+        text: option.text
+      })),
     },
   });
 
@@ -46,29 +75,32 @@ export function CreatePollForm() {
     name: "options",
   });
 
-  const handleFormSubmit = async (values: z.infer<typeof pollFormSchema>) => {
+  const handleFormSubmit = async (values: z.infer<typeof editPollSchema>) => {
     const formData = new FormData();
     formData.append("title", values.title);
     if (values.description) {
       formData.append("description", values.description);
     }
-    values.options.forEach((option) => {
-      formData.append("options", option.text);
-    });
+    
+    // Filter out empty options and clean the data
+    const cleanOptions = values.options
+      .filter(option => option.text.trim() !== "") // Remove empty options
+      .map(option => ({
+        text: option.text.trim() // Trim whitespace
+      }));
+    
+    formData.append("options", JSON.stringify(cleanOptions));
 
     try {
-      const result = await createPoll(formData);
+      const result = await updatePoll(poll.id, formData);
       
       if (result?.success) {
         setMessage(result.message);
         setIsSuccess(true);
         
-        // Reset form
-        form.reset();
-        
         // Redirect after showing success message
         setTimeout(() => {
-          router.push(`/polls/${result.pollId}`);
+          router.push(`/polls/${poll.id}`);
         }, 2000);
       } else if (result?.message) {
         setMessage(result.message);
@@ -81,7 +113,21 @@ export function CreatePollForm() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href={`/polls/${poll.id}`}>
+          <Button variant="outline" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Poll
+          </Button>
+        </Link>
+        <Link href="/dashboard">
+          <Button variant="outline" size="sm">
+            Dashboard
+          </Button>
+        </Link>
+      </div>
+
       {message && (
         <div
           className={`p-4 rounded-md ${
@@ -98,6 +144,13 @@ export function CreatePollForm() {
           )}
         </div>
       )}
+
+      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+        <h3 className="font-medium text-yellow-800 mb-1">Important Notice</h3>
+        <p className="text-sm text-yellow-700">
+          Editing this poll will remove all existing votes. This action cannot be undone.
+        </p>
+      </div>
 
       <Form {...form}>
         <form
@@ -177,9 +230,25 @@ export function CreatePollForm() {
             </Button>
           </div>
 
-          <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Creating Poll..." : "Create Poll"}
-          </Button>
+          <div className="flex gap-4">
+            <Button 
+              type="submit" 
+              disabled={form.formState.isSubmitting}
+              onClick={() => {
+                // Remove any empty options before validation
+                const currentOptions = form.getValues("options");
+                const nonEmptyOptions = currentOptions.filter(option => option.text.trim() !== "");
+                form.setValue("options", nonEmptyOptions);
+              }}
+            >
+              {form.formState.isSubmitting ? "Updating Poll..." : "Update Poll"}
+            </Button>
+            <Link href={`/polls/${poll.id}`}>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </Link>
+          </div>
         </form>
       </Form>
     </div>
