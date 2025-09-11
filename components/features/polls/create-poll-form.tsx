@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { createPoll } from "@/lib/actions";
 
 const pollFormSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long"),
@@ -57,7 +56,11 @@ export function CreatePollForm() {
     });
 
     try {
-      const result = await createPoll(formData);
+      const response = await fetch('/api/polls', {
+        method: 'POST',
+        body: formData,
+      });
+      const result = await response.json();
       
       if (result?.success) {
         setMessage(result.message);

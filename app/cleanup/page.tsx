@@ -1,26 +1,41 @@
-import { cookies } from "next/headers";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { cleanupPollDuplicates } from "@/lib/actions";
+"use client";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
-async function handleCleanup() {
-  "use server";
-  
-  const result = await cleanupPollDuplicates("6fc94e30-05b2-4a44-bfdd-e0a7e375ea64");
-  console.log("Cleanup result:", result);
+async function getPollData() {
+  const response = await fetch('/api/polls/6fc94e30-05b2-4a44-bfdd-e0a7e375ea64/options');
+  if (!response.ok) {
+    return { options: [], uniqueTexts: 0 };
+  }
+  const { options } = await response.json();
+  const uniqueTexts = new Set(options.map(o => o.text.trim().toLowerCase())).size;
+  return { options, uniqueTexts };
 }
 
-export default async function CleanupPage() {
-  const cookieStore = await cookies();
-  const supabase = createSupabaseServerClient(cookieStore);
+export default function CleanupPage() {
+  const [options, setOptions] = useState([]);
+  const [uniqueTexts, setUniqueTexts] = useState(0);
+  const [message, setMessage] = useState("");
 
-  // Get current options count
-  const { data: options, error } = await supabase
-    .from("poll_options")
-    .select("id, text")
-    .eq("poll_id", "6fc94e30-05b2-4a44-bfdd-e0a7e375ea64");
+  useEffect(() => {
+    getPollData().then(data => {
+      setOptions(data.options);
+      setUniqueTexts(data.uniqueTexts);
+    });
+  }, []);
 
-  const uniqueTexts = options ? new Set(options.map(o => o.text.trim().toLowerCase())).size : 0;
+  const handleCleanup = async () => {
+    const response = await fetch('/api/polls/6fc94e30-05b2-4a44-bfdd-e0a7e375ea64/cleanup', {
+      method: 'POST',
+    });
+    const result = await response.json();
+    setMessage(result.message);
+    getPollData().then(data => {
+      setOptions(data.options);
+      setUniqueTexts(data.uniqueTexts);
+    });
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -30,9 +45,9 @@ export default async function CleanupPage() {
       <div className="space-y-4 mb-6">
         <p>Current status:</p>
         <ul className="list-disc list-inside">
-          <li>Total options: {options?.length || 0}</li>
+          <li>Total options: {options.length}</li>
           <li>Unique texts: {uniqueTexts}</li>
-          <li>Duplicates to clean: {(options?.length || 0) - uniqueTexts}</li>
+          <li>Duplicates to clean: {options.length - uniqueTexts}</li>
         </ul>
       </div>
 
@@ -41,6 +56,8 @@ export default async function CleanupPage() {
           Clean Up Duplicates
         </Button>
       </form>
+
+      {message && <p className="mt-4">{message}</p>}
 
       <div className="mt-6">
         <a href="/debug" className="text-blue-600 hover:underline">

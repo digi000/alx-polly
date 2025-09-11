@@ -24,7 +24,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, Eye, Plus } from "lucide-react";
-import { deletePoll } from "@/lib/actions";
 
 interface PollOption {
   id: string;
@@ -53,7 +52,9 @@ export function DashboardContent({ polls, userId }: DashboardContentProps) {
   const handleDeletePoll = async (pollId: string) => {
     setDeletingPollId(pollId);
     try {
-      await deletePoll(pollId);
+      await fetch(`/api/polls/${pollId}`, {
+        method: 'DELETE',
+      });
       // The page will revalidate and show updated data
     } catch (error) {
       console.error("Error deleting poll:", error);

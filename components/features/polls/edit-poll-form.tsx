@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { updatePoll } from "@/lib/actions";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -92,7 +91,11 @@ export function EditPollForm({ poll }: EditPollFormProps) {
     formData.append("options", JSON.stringify(cleanOptions));
 
     try {
-      const result = await updatePoll(poll.id, formData);
+      const response = await fetch(`/api/polls/${poll.id}`, {
+        method: 'PUT',
+        body: formData,
+      });
+      const result = await response.json();
       
       if (result?.success) {
         setMessage(result.message);
