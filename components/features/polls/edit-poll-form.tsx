@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useApiForm } from "@/lib/hooks/use-api-form";
 
 const editPollSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long"),
@@ -53,9 +54,19 @@ interface EditPollFormProps {
 }
 
 export function EditPollForm({ poll }: EditPollFormProps) {
-  const [message, setMessage] = useState<string>("");
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const router = useRouter();
+  const {
+    handleSubmit: handleApiSubmit,
+    message,
+    isSuccess,
+    isSubmitting,
+  } = useApiForm(`/api/polls/${poll.id}`, "PUT", {
+    onSuccess: () => {
+      setTimeout(() => {
+        router.push(`/polls/${poll.id}`);
+      }, 2000);
+    },
+  });
 
   const form = useForm<z.infer<typeof editPollSchema>>({
     resolver: zodResolver(editPollSchema),
@@ -90,29 +101,7 @@ export function EditPollForm({ poll }: EditPollFormProps) {
     
     formData.append("options", JSON.stringify(cleanOptions));
 
-    try {
-      const response = await fetch(`/api/polls/${poll.id}`, {
-        method: 'PUT',
-        body: formData,
-      });
-      const result = await response.json();
-      
-      if (result?.success) {
-        setMessage(result.message);
-        setIsSuccess(true);
-        
-        // Redirect after showing success message
-        setTimeout(() => {
-          router.push(`/polls/${poll.id}`);
-        }, 2000);
-      } else if (result?.message) {
-        setMessage(result.message);
-        setIsSuccess(false);
-      }
-    } catch (error) {
-      setMessage("An unexpected error occurred.");
-      setIsSuccess(false);
-    }
+    await handleApiSubmit(formData);
   };
 
   return (

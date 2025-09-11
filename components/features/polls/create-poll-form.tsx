@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useApiForm } from "@/lib/hooks/use-api-form";
 
 const pollFormSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters long"),
@@ -27,9 +28,20 @@ const pollFormSchema = z.object({
 });
 
 export function CreatePollForm() {
-  const [message, setMessage] = useState<string>("");
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const router = useRouter();
+  const {
+    handleSubmit: handleApiSubmit,
+    message,
+    isSuccess,
+    isSubmitting,
+  } = useApiForm("/api/polls", "POST", {
+    onSuccess: (result) => {
+      form.reset();
+      setTimeout(() => {
+        router.push(`/polls/${result.pollId}`);
+      }, 2000);
+    },
+  });
 
   const form = useForm<z.infer<typeof pollFormSchema>>({
     resolver: zodResolver(pollFormSchema),
@@ -55,32 +67,7 @@ export function CreatePollForm() {
       formData.append("options", option.text);
     });
 
-    try {
-      const response = await fetch('/api/polls', {
-        method: 'POST',
-        body: formData,
-      });
-      const result = await response.json();
-      
-      if (result?.success) {
-        setMessage(result.message);
-        setIsSuccess(true);
-        
-        // Reset form
-        form.reset();
-        
-        // Redirect after showing success message
-        setTimeout(() => {
-          router.push(`/polls/${result.pollId}`);
-        }, 2000);
-      } else if (result?.message) {
-        setMessage(result.message);
-        setIsSuccess(false);
-      }
-    } catch (error) {
-      setMessage("An unexpected error occurred.");
-      setIsSuccess(false);
-    }
+    await handleApiSubmit(formData);
   };
 
   return (

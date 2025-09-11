@@ -232,4 +232,61 @@ export class PollDatabase {
     await this.deletePollOptions(pollId);
     await this.createPollOptions(pollId, pollData.options);
   }
+
+  /**
+   * Cast a vote on a poll
+   * @param pollId - ID of the poll
+   * @param optionId - ID of the option to vote for
+   * @param userId - ID of the user voting
+   * @returns Promise indicating success
+   */
+  async castVote(pollId: string, optionId: string, userId: string): Promise<void> {
+    // Check if the user has already voted
+    const { data: existingVote, error: existingVoteError } = await this.supabase
+      .from("votes")
+      .select("id")
+      .eq("poll_id", pollId)
+      .eq("user_id", userId)
+      .single();
+
+    if (existingVoteError && existingVoteError.code !== 'PGRST116') { // PGRST116: no rows found
+      throw new Error(`Failed to check for existing vote: ${existingVoteError.message}`);
+    }
+
+    if (existingVote) {
+      throw new Error("User has already voted on this poll.");
+    }
+
+    // Insert the new vote
+    const { error } = await this.supabase
+      .from("votes")
+      .insert({
+        poll_id: pollId,
+        option_id: optionId,
+        user_id: userId,
+      });
+
+    if (error) {
+      throw new Error(`Failed to cast vote: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get a poll with vote counts and user vote
+   * @param pollId - ID of the poll
+   * @param userId - ID of the current user
+   * @returns Promise with poll data, results, and user vote
+   */
+  async getPollWithResults(pollId: string, userId?: string): Promise<any | null> {
+    const { data: poll, error } = await this.supabase
+      .rpc('get_poll_results', { p_poll_id: pollId, p_user_id: userId })
+      .single();
+
+    if (error) {
+      console.error("Error fetching poll with results:", error);
+      return null;
+    }
+
+    return poll;
+  }
 }

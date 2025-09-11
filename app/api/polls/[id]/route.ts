@@ -15,6 +15,21 @@ import {
 } from '@/lib/utils/errors';
 import type { PollActionResult } from '@/lib/types/poll';
 
+export const GET = async (request: Request, { params }: { params: { id: string } }): Promise<NextResponse> => {
+  const supabase = createRouteHandlerClient({ cookies });
+  const pollId = params.id;
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const pollDb = new PollDatabase(supabase);
+  const poll = await pollDb.getPollWithResults(pollId, user?.id);
+
+  if (!poll) {
+    return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
+  }
+
+  return NextResponse.json(poll);
+};
+
 export const PUT = async (request: Request, { params }: { params: { id: string } }): Promise<NextResponse<PollActionResult>> => {
   const supabase = createRouteHandlerClient({ cookies });
   const pollId = params.id;
